@@ -56,7 +56,7 @@ jobs:
             -H 'Content-Type: application/json' \
             -H "Authorization: Bearer $JWT" \
             -d "{
-              \"streaming\": true,
+              \"streaming\": false,
               \"user_prompt\": \"$ERROR_LOG\",
               \"stackspot_knowledge\": false,
               \"return_ks_in_response\": true
