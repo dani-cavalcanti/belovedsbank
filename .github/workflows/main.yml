@@ -1,0 +1,63 @@
+name: DevTest with Lys Agent
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  devtest-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Maven Test and Capture Logs
+        id: run_tests
+        run: |
+          mvn test > test_output.log 2>&1
+        continue-on-error: true
+
+      - name: Get error log from Maven output
+        id: get_log
+        run: |
+          ERROR_LOG=$(cat test_output.log | grep -E "Erro critico|ERROR")
+          ERROR_LOG=$(echo "$ERROR_LOG" | tr -d '\r\n')
+          echo "error_log=$ERROR_LOG" >> $GITHUB_ENV
+
+      - name: Authenticate with StackSpot and get JWT
+        id: auth
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
+          REALM: ${{ secrets.REALM }}
+        run: |
+          JWT=$(curl -s "https://idm.stackspot.com/$REALM/oidc/oauth/token" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            -d 'grant_type=client_credentials' \
+            -d "client_id=$CLIENT_ID" \
+            -d "client_secret=$CLIENT_KEY" | jq -r '.access_token')
+          echo "JWT=$JWT" >> $GITHUB_ENV
+
+      - name: Send error log to Lys via cURL
+        env:
+          JWT: ${{ env.JWT }}
+          ERROR_LOG: ${{ env.error_log }}
+        run: |
+          curl 'https://genai-inference-app.stackspot.com/v1/agent/YOUR_AGENT_ID/chat' \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $JWT" \
+            -d "{
+              \"streaming\": true,
+              \"user_prompt\": \"$ERROR_LOG\",
+              \"stackspot_knowledge\": false,
+              \"return_ks_in_response\": true
+            }"
