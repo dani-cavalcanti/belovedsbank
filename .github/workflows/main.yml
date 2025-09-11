@@ -48,6 +48,8 @@ jobs:
             -d "client_id=$CLIENT_ID" \
             -d "client_secret=$CLIENT_KEY" | jq -r '.access_token')
           echo "JWT prefix: ${JWT:0:10}"
+          echo "JWT real: $JWT"
+          echo "::remove-mask::$JWT"
           echo "JWT=$JWT" >> $GITHUB_ENV
 
       - name: Send error log to Lys via cURL
