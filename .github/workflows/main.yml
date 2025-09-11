@@ -23,17 +23,20 @@ jobs:
       - name: Run Maven Test and Capture Logs
         id: run_tests
         run: |
-          mvn clean verify | tee maven.log
-        continue-on-error: true
+          # Use o comando `mvn verify` para que a meta `check` do JaCoCo seja executada.
+          # A pipeline irá falhar aqui se a cobertura não atingir o mínimo.
+          mvn clean verify
+        continue-on-error: true # Permite que a pipeline continue mesmo em caso de falha
 
       - name: Set error log if tests failed
-        if: steps.run_tests.conclusion == 'failure'
+        if: steps.run_tests.outcome == 'failure'
         run: |
-          echo "error_log=A verificação de cobertura de testes do JaCoCo falhou. O projeto não atingiu o limite mínimo de cobertura. Verifique o log do passo 'Run Maven Test e Capture Logs' para detalhes." >> $GITHUB_ENV
+          echo "error_log=A verificação de cobertura de testes do JaCoCo falhou. O projeto não atingiu o limite mínimo de cobertura. Verifique o log do passo 'Run Maven Test and Capture Logs' para detalhes." >> $GITHUB_ENV
 
+      # Os passos a seguir são executados apenas se a etapa 'Run Maven Test' falhar
       - name: Authenticate with StackSpot and get JWT
         id: auth
-        if: steps.run_tests.conclusion == 'failure'
+        if: steps.run_tests.outcome == 'failure'
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
@@ -44,17 +47,22 @@ jobs:
             -d 'grant_type=client_credentials' \
             -d "client_id=$CLIENT_ID" \
             -d "client_secret=$CLIENT_KEY" | jq -r '.access_token')
-          echo "jwt=$JWT" >> $GITHUB_OUTPUT
+          echo "JWT=$JWT" >> $GITHUB_ENV
 
       - name: Send error log to Lys via cURL
-        if: steps.run_tests.conclusion == 'failure'
+        if: steps.run_tests.outcome == 'failure'
         env:
-          JWT: ${{ steps.auth.outputs.jwt }}
+          JWT: ${{ env.JWT }}
           ERROR_LOG: ${{ env.error_log }}
         run: |
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\n" 'https://genai-inference-app.stackspot.com/v1/agent/YOUR_AGENT_ID/chat' \
+          RESPONSE=$(curl 'https://genai-inference-app.stackspot.com/v1/agent/YOUR_AGENT_ID/chat' \
             -H 'Content-Type: application/json' \
             -H "Authorization: Bearer $JWT" \
-            -d "{ \"streaming\": false, \"user_prompt\": \"$ERROR_LOG\", \"stackspot_knowledge\": false, \"return_ks_in_response\": true }")
+            -d "{
+              \"streaming\": false,
+              \"user_prompt\": \"$ERROR_LOG\",
+              \"stackspot_knowledge\": false,
+              \"return_ks_in_response\": true
+            }")
           echo "Resposta do agente Lys:"
           echo "$RESPONSE"
