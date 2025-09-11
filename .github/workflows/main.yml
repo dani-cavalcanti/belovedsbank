@@ -55,7 +55,7 @@ jobs:
           JWT: ${{ env.JWT }}
           ERROR_LOG: ${{ env.error_log }}
         run: |
-          RESPONSE=$(curl 'https://genai-inference-app.stackspot.com/v1/agent/YOUR_AGENT_ID/chat' \
+          RESPONSE=$(curl 'https://genai-inference-app.stackspot.com/v1/agent/765240/chat' \
             -H 'Content-Type: application/json' \
             -H "Authorization: Bearer $JWT" \
             -d "{
@@ -64,5 +64,5 @@ jobs:
               \"stackspot_knowledge\": false,
               \"return_ks_in_response\": true
             }")
-          echo "Resposta do agente Lys:"
+          echo "Resposta da agente Lys:"
           echo "$RESPONSE"
