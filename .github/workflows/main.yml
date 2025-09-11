@@ -49,16 +49,21 @@ jobs:
             -d "client_secret=$CLIENT_KEY" | jq -r '.access_token')
           echo "JWT=$JWT" >> $GITHUB_ENV
 
-      - name: Enviar erro para Lys e exibir resposta
-        if: steps.run_tests.conclusion == 'failure'
+      - name: Send error log to Lys via cURL
+        if: steps.run_tests.outcome == 'failure'
         env:
-          JWT: ${{ steps.auth.outputs.jwt }}
+          JWT: ${{ env.JWT }}
           ERROR_LOG: ${{ env.error_log }}
         run: |
-          RESPONSE=$(curl -s 'https://genai-inference-app.stackspot.com/v1/agent/765240/chat' \
+          RESPONSE=$(curl 'https://genai-inference-app.stackspot.com/v1/agent/765240/chat' \
             -H 'Content-Type: application/json' \
             -H "Authorization: Bearer $JWT" \
-            -d "{ \"streaming\": false, \"user_prompt\": \"$ERROR_LOG\", \"stackspot_knowledge\": false, \"return_ks_in_response\": true }")
+            -d "{
+              \"streaming\": false,
+              \"user_prompt\": \"$ERROR_LOG\",
+              \"stackspot_knowledge\": false,
+              \"return_ks_in_response\": true
+            }")
           # Se a resposta for JSON e o texto vier em .response, descomente a linha abaixo:
           # echo "$RESPONSE" | jq -r '.response'
           # Caso a resposta já seja texto puro, apenas imprima:
