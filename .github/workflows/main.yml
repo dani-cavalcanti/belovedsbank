@@ -23,18 +23,20 @@ jobs:
       - name: Run Maven Test and Capture Logs
         id: run_tests
         run: |
-          mvn test > test_output.log 2>&1
-        continue-on-error: true
+          # Use o comando `mvn verify` para que a meta `check` do JaCoCo seja executada.
+          # A pipeline irá falhar aqui se a cobertura não atingir o mínimo.
+          mvn clean verify
+        continue-on-error: true # Permite que a pipeline continue mesmo em caso de falha
 
-      - name: Get error log from Maven output
-        id: get_log
+      - name: Set error log if tests failed
+        if: steps.run_tests.outcome == 'failure'
         run: |
-          ERROR_LOG=$(cat test_output.log | grep -E "Erro critico|ERROR")
-          ERROR_LOG=$(echo "$ERROR_LOG" | tr -d '\r\n')
-          echo "error_log=$ERROR_LOG" >> $GITHUB_ENV
+          echo "error_log=A verificação de cobertura de testes do JaCoCo falhou. O projeto não atingiu o limite mínimo de cobertura. Verifique o log do passo 'Run Maven Test and Capture Logs' para detalhes." >> $GITHUB_ENV
 
+      # Os passos a seguir são executados apenas se a etapa 'Run Maven Test' falhar
       - name: Authenticate with StackSpot and get JWT
         id: auth
+        if: steps.run_tests.outcome == 'failure'
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
@@ -48,6 +50,7 @@ jobs:
           echo "JWT=$JWT" >> $GITHUB_ENV
 
       - name: Send error log to Lys via cURL
+        if: steps.run_tests.outcome == 'failure'
         env:
           JWT: ${{ env.JWT }}
           ERROR_LOG: ${{ env.error_log }}
