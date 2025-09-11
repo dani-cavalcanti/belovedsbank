@@ -4,7 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="13b433f3-44a3-4843-95d4-e81dadc15ebe" name="Changes" comment="" />
+    <list default="true" id="13b433f3-44a3-4843-95d4-e81dadc15ebe" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/belovedsbank/domain/model/Conta.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/belovedsbank/domain/port/ContaRepositoryPort.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/belovedsbank/domain/port/ContaServicePort.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/belovedsbank/domain/service/ContaService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/belovedsbank/domain/service/ContaServiceTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/belovedsbank/BelovedsBank.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/com/belovedsbank/BelovedsBankTest.java" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -13,6 +23,7 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
+        <option value="Interface" />
         <option value="Class" />
       </list>
     </option>
@@ -20,12 +31,12 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "dani-cavalcanti"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;dani-cavalcanti&quot;
   }
-}]]></component>
+}</component>
   <component name="GitToolBoxStore">
     <option name="recentBranches">
       <RecentBranches>
@@ -51,15 +62,15 @@
       </RecentBranches>
     </option>
   </component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/dani-cavalcanti/belovedsbank.git",
-    "accountId": "44553518-e8b2-40d7-ac41-c21a865d6fb8"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/dani-cavalcanti/belovedsbank.git&quot;,
+    &quot;accountId&quot;: &quot;44553518-e8b2-40d7-ac41-c21a865d6fb8&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 3
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3
+}</component>
   <component name="ProjectId" id="32RqQC9KxDCJYNJKWWPWW9JHVRP" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true">
     <ConfirmationsSetting value="2" id="Add" />
@@ -74,7 +85,8 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "main",
-    "kotlin-language-version-configured": "true"
+    "kotlin-language-version-configured": "true",
+    "settings.editor.selected.configurable": "preferences.lookFeel"
   }
 }]]></component>
   <component name="RunAnythingCache">
