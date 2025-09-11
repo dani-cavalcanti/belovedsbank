@@ -1,62 +1,38 @@
-name: DevTest with Lys Agent
+- name: Run Maven Test and Capture Logs
+  id: run_tests
+  run: |
+    mvn clean verify | tee maven.log
+  continue-on-error: true
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+- name: Set error log if tests failed
+  if: steps.run_tests.conclusion == 'failure'
+  run: |
+    echo "error_log=A verificação de cobertura de testes do JaCoCo falhou. O projeto não atingiu o limite mínimo de cobertura. Verifique o log do passo 'Run Maven Test and Capture Logs' para detalhes." >> $GITHUB_ENV
 
-jobs:
-  devtest-analysis:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+- name: Authenticate with StackSpot and get JWT
+  id: auth
+  if: steps.run_tests.conclusion == 'failure'
+  env:
+    CLIENT_ID: ${{ secrets.CLIENT_ID }}
+    CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
+    REALM: ${{ secrets.REALM }}
+  run: |
+    JWT=$(curl -s "https://idm.stackspot.com/$REALM/oidc/oauth/token" \
+      -H 'Content-Type: application/x-www-form-urlencoded' \
+      -d 'grant_type=client_credentials' \
+      -d "client_id=$CLIENT_ID" \
+      -d "client_secret=$CLIENT_KEY" | jq -r '.access_token')
+    echo "jwt=$JWT" >> $GITHUB_OUTPUT
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'maven'
-
-      - name: Run Maven Test and Capture Logs
-        id: run_tests
-        run: |
-          mvn clean verify | tee maven.log
-        continue-on-error: true
-
-      - name: Set error log if tests failed
-        if: steps.run_tests.conclusion == 'failure'
-        run: |
-          echo "error_log=A verificação de cobertura de testes do JaCoCo falhou. O projeto não atingiu o limite mínimo de cobertura. Verifique o log do passo 'Run Maven Test and Capture Logs' para detalhes." >> $GITHUB_ENV
-          # Se quiser enviar o log real, descomente a linha abaixo:
-          echo "error_log=$(tail -n 50 maven.log)" >> $GITHUB_ENV
-
-      - name: Authenticate with StackSpot and get JWT
-        id: auth
-        if: steps.run_tests.conclusion == 'failure'
-        env:
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
-          REALM: ${{ secrets.REALM }}
-        run: |
-          JWT=$(curl -s "https://idm.stackspot.com/$REALM/oidc/oauth/token" \
-            -H 'Content-Type: application/x-www-form-urlencoded' \
-            -d 'grant_type=client_credentials' \
-            -d "client_id=$CLIENT_ID" \
-            -d "client_secret=$CLIENT_KEY" | jq -r '.access_token')
-          echo "::set-output name=jwt::$JWT"
-
-      - name: Send error log to Lys via cURL
-        if: steps.run_tests.conclusion == 'failure'
-        env:
-          JWT: ${{ steps.auth.outputs.jwt }}
-          ERROR_LOG: ${{ env.error_log }}
-        run: |
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\n" 'https://genai-inference-app.stackspot.com/v1/agent/YOUR_AGENT_ID/chat' \
-            -H 'Content-Type: application/json' \
-            -H "Authorization: Bearer $JWT" \
-            -d "{ \"streaming\": false, \"user_prompt\": \"$ERROR_LOG\", \"stackspot_knowledge\": false, \"return_ks_in_response\": true }")
-          echo "Resposta do agente Lys:"
-          echo "$RESPONSE"
+- name: Send error log to Lys via cURL
+  if: steps.run_tests.conclusion == 'failure'
+  env:
+    JWT: ${{ steps.auth.outputs.jwt }}
+    ERROR_LOG: ${{ env.error_log }}
+  run: |
+    RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\n" 'https://genai-inference-app.stackspot.com/v1/agent/YOUR_AGENT_ID/chat' \
+      -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $JWT" \
+      -d "{ \"streaming\": false, \"user_prompt\": \"$ERROR_LOG\", \"stackspot_knowledge\": false, \"return_ks_in_response\": true }")
+    echo "Resposta do agente Lys:"
+    echo "$RESPONSE"
