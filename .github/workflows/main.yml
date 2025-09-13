@@ -65,9 +65,11 @@ jobs:
               \"return_ks_in_response\": true
             }")
           
-          echo "Resposta da Lys:"
-          # Extrai a resposta e salva em um arquivo
-          echo "$RESPONSE" | jq -r '.response' | tee lys_response.txt
+          echo "Resposta bruta da Lys (para depuração):"
+          echo "$RESPONSE"
+          
+          # Salva a resposta bruta no arquivo
+          echo "$RESPONSE" > lys_response.txt
 
       - name: Save Lys response as artifact
         if: steps.run_tests.outcome == 'failure'
