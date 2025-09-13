@@ -42,21 +42,11 @@ jobs:
           CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
           REALM: ${{ secrets.REALM }}
         run: |
-          RESPONSE=$(curl -s "https://idm.stackspot.com/$REALM/oidc/oauth/token" \
+          JWT=$(curl -s "https://idm.stackspot.com/${{ env.REALM }}/oidc/oauth/token" \
             -H 'Content-Type: application/x-www-form-urlencoded' \
             -d 'grant_type=client_credentials' \
-            -d "client_id=$CLIENT_ID" \
-            -d "client_secret=$CLIENT_KEY")
-          
-          # Extrai o JWT da resposta JSON
-          JWT=$(echo "$RESPONSE" | jq -r '.access_token')
-
-          if [ "$JWT" = "null" ]; then
-            echo "::error::Falha na autenticação. O JWT retornado é nulo."
-            echo "Resposta completa da API de autenticação: $RESPONSE"
-            exit 1
-          fi
-
+            -d "client_id=${{ env.CLIENT_ID }}" \
+            -d "client_secret=${{ env.CLIENT_KEY }}" | jq -r '.access_token')
           echo "JWT=$JWT" >> $GITHUB_ENV
 
       - name: Send error log to Lys via cURL
@@ -67,7 +57,7 @@ jobs:
         run: |
           RESPONSE=$(curl 'https://genai-inference-app.stackspot.com/v1/agent/765240/chat' \
             -H 'Content-Type: application/json' \
-            -H "Authorization: Bearer $JWT" \
+            -H "Authorization: Bearer ${{ env.JWT }}" \
             -d "{
               \"streaming\": false,
               \"user_prompt\": \"$ERROR_LOG\",
@@ -76,7 +66,7 @@ jobs:
             }")
           
           echo "Resposta bruta da Lys (para depuração):"
-          echo "$RESPONSE" | tee lys_response.txt
+          echo "$RESPONSE" > lys_response.txt
 
       - name: Save Lys response as artifact
         if: steps.run_tests.outcome == 'failure'
