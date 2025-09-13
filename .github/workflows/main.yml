@@ -66,10 +66,7 @@ jobs:
             }")
           
           echo "Resposta bruta da Lys (para depuração):"
-          echo "$RESPONSE"
-          
-          # Salva a resposta bruta no arquivo
-          echo "$RESPONSE" > lys_response.txt
+          echo "$RESPONSE" | tee lys_response.txt
 
       - name: Save Lys response as artifact
         if: steps.run_tests.outcome == 'failure'
