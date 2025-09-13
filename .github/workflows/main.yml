@@ -37,16 +37,29 @@ jobs:
       - name: Authenticate with StackSpot and get JWT
         id: auth
         if: steps.run_tests.outcome == 'failure'
-        env:
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
-          REALM: ${{ secrets.REALM }}
         run: |
-          JWT=$(curl -s "https://idm.stackspot.com/${{ env.REALM }}/oidc/oauth/token" \
+          # Ativa o modo de depuração para mostrar os comandos executados
+          set -x
+          
+          JWT_RESPONSE=$(curl -s -X POST "https://idm.stackspot.com/${{ secrets.REALM }}/oidc/oauth/token" \
             -H 'Content-Type: application/x-www-form-urlencoded' \
             -d 'grant_type=client_credentials' \
-            -d "client_id=${{ env.CLIENT_ID }}" \
-            -d "client_secret=${{ env.CLIENT_KEY }}" | jq -r '.access_token')
+            -d "client_id=${{ secrets.CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.CLIENT_KEY }}")
+          
+          echo "------------------------------------"
+          echo "Resposta completa da API de autenticação para debug:"
+          echo "$JWT_RESPONSE"
+          echo "------------------------------------"
+          
+          # Extrai o JWT da resposta JSON
+          JWT=$(echo "$JWT_RESPONSE" | jq -r '.access_token')
+          
+          if [ "$JWT" = "null" ] || [ -z "$JWT" ]; then
+            echo "::error::Falha na autenticação. O JWT está nulo ou vazio."
+            exit 1
+          fi
+
           echo "JWT=$JWT" >> $GITHUB_ENV
 
       - name: Send error log to Lys via cURL
