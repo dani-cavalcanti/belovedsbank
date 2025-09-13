@@ -45,7 +45,7 @@ jobs:
             -H 'Content-Type: application/x-www-form-urlencoded' \
             -d 'grant_type=client_credentials' \
             -d "client_id=${{ secrets.CLIENT_ID }}" \
-            -d "client_secret=${{ secrets.CLIENT_KEY }}")
+            -d "client_secret=${{ secrets.CLIENT_SECRET }}")
           
           echo "------------------------------------"
           echo "Resposta completa da API de autenticação para debug:"
