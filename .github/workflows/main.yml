@@ -42,11 +42,21 @@ jobs:
           CLIENT_KEY: ${{ secrets.CLIENT_KEY }}
           REALM: ${{ secrets.REALM }}
         run: |
-          JWT=$(curl -s "https://idm.stackspot.com/$REALM/oidc/oauth/token" \
+          RESPONSE=$(curl -s "https://idm.stackspot.com/$REALM/oidc/oauth/token" \
             -H 'Content-Type: application/x-www-form-urlencoded' \
             -d 'grant_type=client_credentials' \
             -d "client_id=$CLIENT_ID" \
-            -d "client_secret=$CLIENT_KEY" | jq -r '.access_token')
+            -d "client_secret=$CLIENT_KEY")
+          
+          # Extrai o JWT da resposta JSON
+          JWT=$(echo "$RESPONSE" | jq -r '.access_token')
+
+          if [ "$JWT" = "null" ]; then
+            echo "::error::Falha na autenticação. O JWT retornado é nulo."
+            echo "Resposta completa da API de autenticação: $RESPONSE"
+            exit 1
+          fi
+
           echo "JWT=$JWT" >> $GITHUB_ENV
 
       - name: Send error log to Lys via cURL
