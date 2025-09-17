@@ -26,9 +26,11 @@ jobs:
           mvn clean verify 2>&1 | tee error.log
         continue-on-error: true
 
-      - name: Install jq
+      - name: Install jq and pandoc
         if: steps.run_tests.outcome == 'failure'
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq pandoc
 
       - name: Authenticate and Analyze Error with Lys
         if: steps.run_tests.outcome == 'failure'
@@ -43,4 +45,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lys-analysis
-          path: lys_response.json
+          path: |
+            lys_response.json
+            resposta_lys.pdf
