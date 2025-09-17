@@ -2,8 +2,7 @@ name: DevTest with Lys Agent
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -23,35 +22,24 @@ jobs:
       - name: Run Maven Test and Capture Logs
         id: run_tests
         run: |
+          set -o pipefail
           mvn clean verify 2>&1 | tee error.log
+        continue-on-error: true
 
-      - name: Export error.log as env
-        if: failure()
-        id: export_log
-        run: |
-          echo "error_log<<EOF" >> $GITHUB_ENV
-          cat error.log >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+      - name: Install jq
+        if: steps.run_tests.outcome == 'failure'
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Analisar log de erro com StackSpot AI (Lys)
-        if: failure()
-        uses: stackspot-core/stackspot-ai-quick-command@0
-        id: lys_analysis
-        with:
-          quick_command_slug: devtest_lys_analysis
-          input_data: |
-            { "logs_erro": "${{ env.error_log }}" }
-          client_id: ${{ secrets.CLIENT_ID }}
-          client_key: ${{ secrets.CLIENT_KEY }}
-          realm: ${{ secrets.REALM }}
+      - name: Authenticate and Analyze Error with Lys
+        if: steps.run_tests.outcome == 'failure'
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REALM: ${{ secrets.REALM }}
+        run: bash ./analisar_log.sh
 
-      - name: Salvar análise da Lys em arquivo
-        if: failure()
-        run: |
-          echo "${{ steps.lys_analysis.outputs.answer }}" > lys_response.txt
-
-      - name: Upload análise da Lys como artefato
-        if: failure()
+      - name: Save Lys response as artifact
+        if: steps.run_tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: lys-analysis
