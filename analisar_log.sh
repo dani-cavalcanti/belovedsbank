@@ -16,7 +16,6 @@ erro() {
 
 # === Verificações de requisitos ===
 command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. Instale com: sudo apt-get install jq"
-command -v pandoc >/dev/null 2>&1 || erro "O utilitário 'pandoc' não está instalado. Instale com: sudo apt-get install pandoc"
 
 # === Verifica se o arquivo de log existe ===
 [ -f "error.log" ] || erro "Arquivo 'error.log' não encontrado no diretório atual."
@@ -43,7 +42,7 @@ RESPONSE=$(curl -s -X POST "$QUICK_COMMAND_URL" \
 
 echo "$RESPONSE" > lys_response.json
 
-# === 4. Extrair resposta e gerar PDF diretamente ===
-jq -r '.result.answer' lys_response.json | pandoc -o resposta_lys.pdf || erro "Falha ao gerar o PDF."
+# === 4. Extrair resposta e salvar em Markdown ===
+jq -r '.result.answer // .answer // .message // .result' lys_response.json > resposta_lys.md || erro "Falha ao extrair resposta para Markdown."
 
-echo "PDF gerado com sucesso: resposta_lys.pdf"
+echo "Resposta salva com sucesso em resposta_lys.md"
