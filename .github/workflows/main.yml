@@ -1,7 +1,7 @@
 name: DevTest with Lys Agent
 
 on:
-  pull_request:
+  push:
     branches:
       - main
   workflow_dispatch:
@@ -9,7 +9,6 @@ on:
 jobs:
   devtest-analysis:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,18 +23,24 @@ jobs:
       - name: Run Maven Test and Capture Logs
         id: run_tests
         run: |
-          # Use o comando `mvn verify` para que a meta `check` do JaCoCo seja executada.
-          # A pipeline irá falhar aqui se a cobertura não atingir o mínimo.
-          mvn clean verify
-        continue-on-error: true # Permite que a pipeline continue mesmo em caso de falha
+          mvn clean verify 2>&1 | tee error.log
+        continue-on-error: true
 
-      - name: Run Quick Command Script
-        if: steps.run_tests.outcome == 'failure' # Executa apenas se os testes falharem
-        run: |
-          # Configura o ambiente Python
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install -r requirements.txt # Instale as dependências do script, se necessário
+      # Os passos a seguir só rodam se os testes falharem
+      - name: Dê permissão de execução ao script analisar_log.sh
+        if: steps.run_tests.outcome == 'failure'
+        run: chmod +x ./analisar_log.sh
 
-          # Execute o script Python
-          python quick_command.py
+      - name: Executar análise de log com StackSpot AI (Lys)
+        if: steps.run_tests.outcome == 'failure'
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_KEY }}
+        run: ./analisar_log.sh
+
+      - name: Upload análise da Lys como artefato
+        if: steps.run_tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lys-analysis
+          path: lys_response.json
