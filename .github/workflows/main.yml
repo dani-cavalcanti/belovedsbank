@@ -26,11 +26,11 @@ jobs:
           mvn clean verify 2>&1 | tee error.log
         continue-on-error: true
 
-      - name: Install jq
+      - name: Install jq, pandoc and LaTeX
         if: steps.run_tests.outcome == 'failure'
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq
+          sudo apt-get install -y jq pandoc texlive-latex-base
 
       - name: Authenticate and Analyze Error with Lys
         if: steps.run_tests.outcome == 'failure'
@@ -40,11 +40,6 @@ jobs:
           REALM: ${{ secrets.REALM }}
         run: bash ./analisar_log.sh
 
-      - name: Extrair resposta do Lys para Markdown
-        if: steps.run_tests.outcome == 'failure'
-        run: |
-          jq -r '.result.answer // .answer // .message // .result' lys_response.json > resposta_lys.md
-
       - name: Save Lys response as artifact
         if: steps.run_tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
@@ -52,4 +47,4 @@ jobs:
           name: lys-analysis
           path: |
             lys_response.json
-            resposta_lys.md
+            resposta_lys.pdf
