@@ -21,13 +21,14 @@ if [ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ]; then
   exit 1
 fi
 
-# === 2. CAPTURAR LOG DE ERRO ===
-LOG_ERRO=$(cat error.log)
+# === 2. CAPTURAR LOG DE ERRO E SERIALIZAR COM jq ===
+# Isso transforma o conteúdo do log em uma string JSON válida
+JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
 
 # === 3. CHAMAR O QUICK COMMAND ===
 RESPONSE=$(curl -s -X POST "$QUICK_COMMAND_URL" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"input_data\": \"$LOG_ERRO\"}")
+  -d "$JSON")
 
 echo "$RESPONSE" > lys_response.json
