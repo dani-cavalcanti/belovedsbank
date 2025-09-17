@@ -30,7 +30,7 @@ jobs:
         if: steps.run_tests.outcome == 'failure'
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq pandoc texlive-latex-base
+          sudo apt-get install -y jq pandoc texlive-latex-recommended
 
       - name: Authenticate and Analyze Error with Lys
         if: steps.run_tests.outcome == 'failure'
