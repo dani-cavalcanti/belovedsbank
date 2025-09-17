@@ -30,7 +30,7 @@ jobs:
         if: steps.run_tests.outcome == 'failure'
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq pandoc texlive-latex-recommended
+          sudo apt-get install -y jq pandoc texlive-latex-base texlive-latex-recommended texlive-xetex
 
       - name: Authenticate and Analyze Error with Lys
         if: steps.run_tests.outcome == 'failure'
@@ -39,6 +39,14 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REALM: ${{ secrets.REALM }}
         run: bash ./analisar_log.sh
+
+      - name: Check PDF file
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          if [ ! -s resposta_lys.pdf ]; then
+            echo "::error::PDF não foi gerado corretamente."
+            exit 1
+          fi
 
       - name: Save Lys response as artifact
         if: steps.run_tests.outcome == 'failure'
