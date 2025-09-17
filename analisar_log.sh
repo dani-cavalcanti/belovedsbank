@@ -42,7 +42,7 @@ RESPONSE=$(curl -s -X POST "$QUICK_COMMAND_URL" \
 
 echo "$RESPONSE" > lys_response.json
 
-# === 4. Extrair resposta e salvar em Markdown ===
-jq -r '.result.answer // .answer // .message // .result' lys_response.json > resposta_lys.md || erro "Falha ao extrair resposta para Markdown."
+# === 4. Extrair resposta correta e salvar em Markdown ===
+jq -r '.steps[0].step_result.answer' lys_response.json > resposta_lys.md || erro "Falha ao extrair resposta para Markdown."
 
 echo "Resposta salva com sucesso em resposta_lys.md"
