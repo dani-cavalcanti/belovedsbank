@@ -4,10 +4,22 @@
 CLIENT_ID="${CLIENT_ID}"
 CLIENT_SECRET="${CLIENT_SECRET}"
 REALM="${REALM:-stackspot-freemium}"
-
 TOKEN_URL="https://idm.stackspot.com/${REALM}/oidc/oauth/token"
 QUICK_COMMAND_SLUG="analisar-logs-da-pipeline"
 QUICK_COMMAND_URL="https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/${QUICK_COMMAND_SLUG}"
+
+# === Função de erro ===
+erro() {
+  echo "Erro: $1"
+  exit 1
+}
+
+# === Verificações de requisitos ===
+command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. Instale com: sudo apt-get install jq"
+command -v pandoc >/dev/null 2>&1 || erro "O utilitário 'pandoc' não está instalado. Instale com: sudo apt-get install pandoc"
+
+# === Verifica se o arquivo de log existe ===
+[ -f "error.log" ] || erro "Arquivo 'error.log' não encontrado no diretório atual."
 
 # === 1. GERAR ACCESS TOKEN ===
 ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
@@ -17,12 +29,10 @@ ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
   --data-urlencode "client_secret=${CLIENT_SECRET}" | jq -r .access_token)
 
 if [ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ]; then
-  echo "Erro ao obter access token!"
-  exit 1
+  erro "Erro ao obter access token!"
 fi
 
 # === 2. CAPTURAR LOG DE ERRO E SERIALIZAR COM jq ===
-# Isso transforma o conteúdo do log em uma string JSON válida
 JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
 
 # === 3. CHAMAR O QUICK COMMAND ===
@@ -32,3 +42,8 @@ RESPONSE=$(curl -s -X POST "$QUICK_COMMAND_URL" \
   -d "$JSON")
 
 echo "$RESPONSE" > lys_response.json
+
+# === 4. Extrair resposta e gerar PDF diretamente ===
+jq -r '.result.answer' lys_response.json | pandoc -o resposta_lys.pdf || erro "Falha ao gerar o PDF."
+
+echo "PDF gerado com sucesso: resposta_lys.pdf"
