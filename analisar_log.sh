@@ -59,7 +59,7 @@ fi
 # === Loop até status COMPLETED ===
 # Configura um loop com tempo de espera e limite de tentativas para evitar
 # o loop infinito.
-MAX_TRIES=60
+MAX_TRIES=180
 SLEEP_TIME=5
 TRIES=0
 
