@@ -1,68 +1,44 @@
 #!/bin/bash
 
-# === CONFIGURAÇÕES ===
-CLIENT_ID="${CLIENT_ID}"
-CLIENT_SECRET="${CLIENT_SECRET}"
-REALM="${REALM:-stackspot-freemium}"
-TOKEN_URL="https://idm.stackspot.com/${REALM}/oidc/oauth/token"
-QUICK_COMMAND_SLUG="analisar-logs-da-pipeline"
-QUICK_COMMAND_URL="https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/${QUICK_COMMAND_SLUG}"
-CALLBACK_URL="https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback"
-
 # === Função de erro ===
 erro() {
-  echo "Erro: $1" >&2
+  echo "Erro: $1"
   exit 1
 }
 
 # === Verificações de requisitos ===
 command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. Instale com: sudo apt-get install jq"
+command -v pandoc >/dev/null 2>&1 || erro "O utilitário 'pandoc' não está instalado. Instale com: sudo apt-get install pandoc"
 
-# === Verifica se o arquivo de log existe ===
-[ -f "error.log" ] || erro "Arquivo 'error.log' não encontrado no diretório atual."
+# === Verifica se o arquivo de resposta existe ===
+[ -f "lys_response.json" ] || erro "Arquivo 'lys_response.json' não encontrado no diretório atual."
 
-# === 1. GERAR ACCESS TOKEN ===
+# === Extrai o execution_id do arquivo ===
+EXECUTION_ID=$(jq -r .execution_id lys_response.json)
+if [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ]; then
+  erro "execution_id não encontrado em lys_response.json!"
+fi
+
+# === Gera o access token (ajuste as variáveis conforme necessário) ===
+# CLIENT_ID, CLIENT_SECRET e REALM devem estar exportados no ambiente ou definidos aqui
+TOKEN_URL="https://idm.stackspot.com/${REALM:-stackspot-freemium}/oidc/oauth/token"
 ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
   --header 'Content-Type: application/x-www-form-urlencoded' \
   --data-urlencode "client_id=${CLIENT_ID}" \
   --data-urlencode 'grant_type=client_credentials' \
   --data-urlencode "client_secret=${CLIENT_SECRET}" | jq -r .access_token)
+if [ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+  erro "Erro ao obter access token!"
+fi
 
-[ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ] && erro "Erro ao obter access token!"
+# === Faz o GET para buscar o resultado do Quick Command ===
+RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
+  -H "Authorization: Bearer $ACCESS_TOKEN")
 
-# === 2. CAPTURAR LOG DE ERRO E SERIALIZAR COM jq ===
-JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
+echo "$RESPONSE" > lys_result.json
 
-# === 3. CHAMAR O QUICK COMMAND ===
-RESPONSE=$(curl -s -X POST "$QUICK_COMMAND_URL" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "$JSON")
-echo "$RESPONSE" > lys_response.json
+# === Extrai o campo desejado e converte para Markdown ===
+# Ajuste o caminho do jq conforme o campo que deseja extrair!
+jq -r '.result.answer' lys_result.json > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
 
-# === 4. EXTRAIR EXECUTION_ID ===
-# Se a resposta for um objeto, pega o campo execution_id, senão pega o valor bruto
-EXECUTION_ID=$(jq -r 'if type=="object" then .execution_id else . end' lys_response.json)
-[ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ] && erro "execution_id não encontrado na resposta do Quick Command!"
-
-# === 5. POLLING ATÉ O STATUS SER COMPLETED ===
-for i in {1..20}; do
-  RESULT_RESPONSE=$(curl -s -X GET "${CALLBACK_URL}/${EXECUTION_ID}" \
-    -H "Authorization: Bearer $ACCESS_TOKEN")
-  STATUS=$(echo "$RESULT_RESPONSE" | jq -r .status)
-  if [ "$STATUS" == "COMPLETED" ]; then
-    echo "$RESULT_RESPONSE" > lys_result.json
-    break
-  fi
-  echo "Aguardando resultado... (tentativa $i)"
-  sleep 5
-done
-
-[ ! -f lys_result.json ] && erro "Resultado não ficou pronto após várias tentativas."
-
-# === 6. Extrair resposta e gerar arquivo Markdown ===
-ANSWER=$(jq -r '.result.answer // empty' lys_result.json)
-[ -z "$ANSWER" ] && erro "Não foi possível extrair a resposta do resultado."
-
-echo "$ANSWER" > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
 echo "Arquivo Markdown gerado com sucesso: resposta_lys.md"
