@@ -29,11 +29,12 @@ JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
 
 # === Chama o Quick Command e salva o response ===
 RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/analisar-logs-da-pipeline" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "$JSON")
+-H "Authorization: Bearer $ACCESS_TOKEN" \
+-H "Content-Type: application/json" \
+-d "$JSON")
 
-echo "$RESPONSE" > lys_response.json
+echo "Resposta do POST:"
+echo "$RESPONSE"
 
 # === Extrai o execution_id ===
 EXECUTION_ID=$(echo "$RESPONSE" | jq -r .execution_id)
