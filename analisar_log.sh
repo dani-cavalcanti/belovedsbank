@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Este script executa as requisições em sequência e garante que a resposta da API
-# é um JSON válido antes de prosseguir.
+# Este script executa as duas requisições em sequência e imprime a resposta JSON completa.
 
 # Configura o script para sair imediatamente se um comando falhar
 set -e
@@ -14,7 +13,7 @@ erro() { echo "Erro: $1" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. Instale com: sudo apt-get install jq"
 [ -f "error.log" ] || erro "Arquivo 'error.log' não encontrado no diretório atual."
 
-# === Gera o access token ===
+# --- Geração do Access Token ---
 TOKEN_URL="https://idm.stackspot.com/${REALM:-stackspot-freemium}/oidc/oauth/token"
 ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
   --header 'Content-Type: application/x-www-form-urlencoded' \
@@ -24,55 +23,24 @@ ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
 
 [ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ] && erro "Erro ao obter access token!"
 
-# === Serializa o log de erro para JSON e chama a API (create-execution) ===
+# --- Chamada da API para criar a execução e obter o ID ---
 JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
 RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/analisar-logs-da-pipeline" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d "$JSON")
 
-# Extrai o execution_id
-EXECUTION_ID=$(echo "$RESPONSE" | tr -d '"' | jq -r .execution_id)
+# Extrai o execution_id e remove as aspas
+EXECUTION_ID=$(echo "$RESPONSE" | tr -d '"')
 [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ] && erro "execution_id não encontrado na resposta do Quick Command!"
 
-# === Loop até status COMPLETED ===
-# Um loop robusto para aguardar a resposta da API
-MAX_TRIES=90
-SLEEP_TIME=5
-TRIES=0
-RESULT_RESPONSE=""
+echo "Execution ID gerado: $EXECUTION_ID"
 
-echo "Aguardando o resultado do Quick Command. Isso pode levar alguns segundos..."
-while [ "$TRIES" -lt "$MAX_TRIES" ]; do
-  RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
-    -H "Authorization: Bearer $ACCESS_TOKEN")
+# --- Chamada da API de Callback para obter a resposta final ---
+echo "Fazendo requisição para a URL de callback..."
+RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
+  -H "Authorization: Bearer $ACCESS_TOKEN")
 
-  # Verifica se a resposta não está vazia e é um JSON válido
-  if [ -z "$RESULT_RESPONSE" ] || ! echo "$RESULT_RESPONSE" | jq . >/dev/null 2>&1; then
-    echo "Aguardando JSON válido..."
-    TRIES=$((TRIES + 1))
-    sleep "$SLEEP_TIME"
-    continue
-  fi
-
-  # Extrai e verifica o status
-  STATUS=$(echo "$RESULT_RESPONSE" | jq -r .status)
-
-  if [ "$STATUS" == "COMPLETED" ]; then
-    echo "Status COMPLETED. Extraindo resultado..."
-    break
-  fi
-
-  TRIES=$((TRIES + 1))
-  sleep "$SLEEP_TIME"
-done
-
-# Verifica se o loop excedeu o limite de tentativas.
-if [ "$TRIES" -eq "$MAX_TRIES" ]; then
-  erro "O tempo limite de espera foi atingido. O status não se tornou COMPLETED."
-fi
-
-# === Extrai a resposta final e salva em Markdown ===
-echo "$RESULT_RESPONSE" | jq -r '.result.answer' > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
-
-echo "Análise concluída. O resultado foi salvo em 'resposta_lys.md'."
+# --- Impressão da Resposta ---
+echo "--- Resposta da Requisição GET ---"
+echo "$RESULT_RESPONSE"
