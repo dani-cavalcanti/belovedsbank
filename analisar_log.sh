@@ -2,11 +2,9 @@
 
 # Este script executa as duas requisições em sequência e imprime a resposta JSON completa.
 
-# Configura o script para sair imediatamente se um comando falhar
 set -e
 
 # === Função de erro ===
-# Exibe uma mensagem de erro no stderr e encerra o script.
 erro() { echo "Erro: $1" >&2; exit 1; }
 
 # === Verificações de requisitos ===
@@ -30,17 +28,34 @@ RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-
   -H "Content-Type: application/json" \
   -d "$JSON")
 
-# Extrai o execution_id e remove as aspas
 EXECUTION_ID=$(echo "$RESPONSE" | tr -d '"')
 [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ] && erro "execution_id não encontrado na resposta do Quick Command!"
 
 echo "Execution ID gerado: $EXECUTION_ID"
 
-# --- Chamada da API de Callback para obter a resposta final ---
-echo "Fazendo requisição para a URL de callback..."
-RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
-  -H "Authorization: Bearer $ACCESS_TOKEN")
+# --- Polling para aguardar a execução ser concluída ---
+echo "Aguardando a execução do Quick Command ser concluída..."
+MAX_ATTEMPTS=20
+SLEEP_SECONDS=3
+ATTEMPT=1
 
-# --- Impressão da Resposta ---
-echo "--- Resposta da Requisição GET ---"
-echo "$RESULT_RESPONSE"
+while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+  RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
+    -H "Authorization: Bearer $ACCESS_TOKEN")
+  STATUS=$(echo "$RESULT_RESPONSE" | jq -r '.progress.status')
+  echo "Tentativa $ATTEMPT: status = $STATUS"
+  if [ "$STATUS" == "COMPLETED" ]; then
+    echo "--- Resposta Final ---"
+    echo "$RESULT_RESPONSE"
+    exit 0
+  elif [ "$STATUS" == "FAILED" ]; then
+    echo "A execução falhou!"
+    echo "$RESULT_RESPONSE"
+    exit 1
+  fi
+  sleep $SLEEP_SECONDS
+  ATTEMPT=$((ATTEMPT+1))
+done
+
+echo "Timeout: a execução não foi concluída após $((MAX_ATTEMPTS * SLEEP_SECONDS)) segundos."
+exit 1
