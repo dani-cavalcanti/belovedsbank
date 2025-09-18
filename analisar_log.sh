@@ -1,10 +1,7 @@
 #!/bin/bash
 
 # === Função de erro ===
-erro() {
-  echo "Erro: $1"
-  exit 1
-}
+erro() { echo "Erro: $1"; exit 1; }
 
 # === Verificações de requisitos ===
 command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. Instale com: sudo apt-get install jq"
@@ -20,9 +17,7 @@ ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
   --data-urlencode 'grant_type=client_credentials' \
   --data-urlencode "client_secret=${CLIENT_SECRET}" | jq -r .access_token)
 
-if [ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ]; then
-  erro "Erro ao obter access token!"
-fi
+[ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ] && erro "Erro ao obter access token!"
 
 # === Serializa o log de erro ===
 JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
@@ -33,39 +28,22 @@ RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-
   -H "Content-Type: application/json" \
   -d "$JSON")
 
-echo "Resposta do POST:"
-echo "$RESPONSE"
-
 # === Extrai o execution_id (trata resposta string ou JSON) ===
 if echo "$RESPONSE" | grep -q '^"'; then
-  # Resposta é uma string entre aspas
   EXECUTION_ID=$(echo "$RESPONSE" | tr -d '"')
 else
-  # Resposta é um JSON
   EXECUTION_ID=$(echo "$RESPONSE" | jq -r .execution_id)
 fi
 
-if [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ]; then
-  erro "execution_id não encontrado na resposta do Quick Command!"
-fi
+[ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ] && erro "execution_id não encontrado na resposta do Quick Command!"
 
-# === Polling até status COMPLETED ===
-for i in {1..10}; do
+# === Loop até status COMPLETED, sem contador, sem sleep, sem mensagens ===
+while true; do
   RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
     -H "Authorization: Bearer $ACCESS_TOKEN")
   STATUS=$(echo "$RESULT_RESPONSE" | jq -r .status)
-  if [ "$STATUS" == "COMPLETED" ]; then
-    echo "$RESULT_RESPONSE" > lys_result.json
-    break
-  fi
-  echo "Aguardando resultado... (tentativa $i)"
-  sleep 3
+  [ "$STATUS" == "COMPLETED" ] && break
 done
 
-if [ ! -f lys_result.json ]; then
-  erro "Resultado não ficou pronto após várias tentativas."
-fi
-
 # === Extrai resposta e gera arquivo Markdown ===
-jq -r '.result.answer' lys_result.json > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
-echo "Arquivo Markdown gerado com sucesso: resposta_lys.md"
+echo "$RESULT_RESPONSE" | jq -r '.result.answer' > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
