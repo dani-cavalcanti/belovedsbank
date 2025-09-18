@@ -49,9 +49,17 @@ while [ "$TRIES" -lt "$MAX_TRIES" ]; do
   # Salva o JSON completo em um arquivo para sua análise
   echo "$RESULT_RESPONSE" > "resposta_completa.json"
 
-  # Verifica se a resposta não está vazia e é um JSON válido
-  if [ -z "$RESULT_RESPONSE" ] || ! echo "$RESULT_RESPONSE" | jq . >/dev/null 2>&1; then
-    echo "Aguardando JSON válido..."
+  # Adiciona uma verificação para garantir que a resposta não esteja vazia
+  if [ -z "$RESULT_RESPONSE" ]; then
+    echo "Resposta da API vazia. Tentando novamente..."
+    TRIES=$((TRIES + 1))
+    sleep "$SLEEP_TIME"
+    continue
+  fi
+
+  # Verifica se a resposta é um JSON válido
+  if ! echo "$RESULT_RESPONSE" | jq . >/dev/null 2>&1; then
+    echo "Resposta da API não é um JSON válido. Conteúdo: $RESULT_RESPONSE"
     TRIES=$((TRIES + 1))
     sleep "$SLEEP_TIME"
     continue
