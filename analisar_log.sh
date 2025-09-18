@@ -16,7 +16,6 @@ erro() {
 
 # === Verificações de requisitos ===
 command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. Instale com: sudo apt-get install jq"
-command -v pandoc >/dev/null 2>&1 || erro "O utilitário 'pandoc' não está instalado. Instale com: sudo apt-get install pandoc"
 
 # === Verifica se o arquivo de log existe ===
 [ -f "error.log" ] || erro "Arquivo 'error.log' não encontrado no diretório atual."
@@ -48,7 +47,7 @@ if [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ]; then
   erro "execution_id não encontrado na resposta do Quick Command!"
 fi
 
-# Fazendo polling até o status ser COMPLETED (opcional, pode remover se não quiser esperar)
+# Fazendo polling até o status ser COMPLETED
 for i in {1..10}; do
   RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/${EXECUTION_ID}" \
     -H "Authorization: Bearer $ACCESS_TOKEN")
@@ -65,7 +64,7 @@ if [ ! -f lys_result.json ]; then
   erro "Resultado não ficou pronto após várias tentativas."
 fi
 
-# === 5. Extrair resposta e gerar PDF diretamente ===
-jq -r '.result.answer' lys_result.json | pandoc -o resposta_lys.pdf || erro "Falha ao gerar o PDF."
+# === 5. Extrair resposta e gerar arquivo Markdown ===
+jq -r '.result.answer' lys_result.json > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
 
-echo "PDF gerado com sucesso: resposta_lys.pdf"
+echo "Arquivo Markdown gerado com sucesso: resposta_lys.md"
