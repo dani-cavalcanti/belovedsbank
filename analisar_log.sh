@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Este script executa as requisições de forma sequencial sem esperar por um status 'COMPLETED'.
+# Use-o quando o tempo de resposta da API de callback for consistentemente rápido.
+
 # Configura o script para sair imediatamente se um comando falhar
 set -e
 
@@ -21,7 +24,7 @@ ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
 
 [ "$ACCESS_TOKEN" == "null" ] || [ -z "$ACCESS_TOKEN" ] && erro "Erro ao obter access token!"
 
-# === Serializa o log de erro para JSON e chama a API ===
+# === Serializa o log de erro para JSON e chama a API (create-execution) ===
 JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
 RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/analisar-logs-da-pipeline" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -29,36 +32,12 @@ RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-
   -d "$JSON")
 
 # Extrai o execution_id
-EXECUTION_ID=$(echo "$RESPONSE" | tr -d '"' | jq -r .execution_id)
+EXECUTION_ID=$(echo "$RESPONSE" | jq -r '.')
 [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ] && erro "execution_id não encontrado na resposta do Quick Command!"
 
-# === Loop até status COMPLETED ===
-# Um loop simples e robusto com um tempo de espera generoso.
-MAX_TRIES=180
-SLEEP_TIME=5
-TRIES=0
-
-echo "Aguardando o resultado do Quick Command. Isso pode levar alguns segundos..."
-while [ "$TRIES" -lt "$MAX_TRIES" ]; do
-  RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
-    -H "Authorization: Bearer $ACCESS_TOKEN")
-
-  # Verifica o status da requisição
-  STATUS=$(echo "$RESULT_RESPONSE" | jq -r .status)
-
-  if [ "$STATUS" == "COMPLETED" ]; then
-    echo "Status COMPLETED. Extraindo resultado..."
-    break
-  fi
-
-  TRIES=$((TRIES + 1))
-  sleep "$SLEEP_TIME"
-done
-
-# Verifica se o loop excedeu o limite de tentativas.
-if [ "$TRIES" -eq "$MAX_TRIES" ]; then
-  erro "O tempo limite de espera foi atingido. O status não se tornou COMPLETED."
-fi
+# === Chama a API de callback usando o ID ===
+RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
+  -H "Authorization: Bearer $ACCESS_TOKEN")
 
 # === Extrai a resposta final e salva em Markdown ===
 echo "$RESULT_RESPONSE" | jq -r '.result.answer' > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
