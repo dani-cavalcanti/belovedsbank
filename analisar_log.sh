@@ -41,9 +41,13 @@ RESPONSE=$(curl -s -X POST "$QUICK_COMMAND_URL" \
   -d "$JSON")
 echo "$RESPONSE" > lys_response.json
 
+# Debug: Mostra resposta da API
+echo "Resposta da API ao criar execução:"
+cat lys_response.json
+
 # === 4. EXTRAIR EXECUTION_ID E BUSCAR RESULTADO ===
-EXECUTION_ID=$(jq -r .execution_id lys_response.json)
-if [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ]; then
+EXECUTION_ID=$(jq -r 'try .execution_id // empty' lys_response.json)
+if [ -z "$EXECUTION_ID" ]; then
   erro "execution_id não encontrado na resposta do Quick Command!"
 fi
 
@@ -64,7 +68,16 @@ if [ ! -f lys_result.json ]; then
   erro "Resultado não ficou pronto após várias tentativas."
 fi
 
+# Debug: Mostra resultado final
+echo "Resultado final do Quick Command:"
+cat lys_result.json
+
 # === 5. Extrair resposta e gerar arquivo Markdown ===
-jq -r '.result.answer' lys_result.json > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
+ANSWER=$(jq -r '.result.answer // empty' lys_result.json)
+if [ -z "$ANSWER" ]; then
+  erro "Não foi possível extrair a resposta do resultado."
+fi
+
+echo "$ANSWER" > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
 
 echo "Arquivo Markdown gerado com sucesso: resposta_lys.md"
