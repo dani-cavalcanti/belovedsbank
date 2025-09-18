@@ -46,7 +46,7 @@ echo "Resposta da API ao criar execução:"
 cat lys_response.json
 
 # === 4. EXTRAIR EXECUTION_ID E BUSCAR RESULTADO ===
-EXECUTION_ID=$(jq -r 'try .execution_id // empty' lys_response.json)
+EXECUTION_ID=$(jq -r 'if type=="object" then .execution_id else . end' lys_response.json)
 if [ -z "$EXECUTION_ID" ]; then
   erro "execution_id não encontrado na resposta do Quick Command!"
 fi
