@@ -65,12 +65,18 @@ TRIES=0
 
 echo "Aguardando o resultado do Quick Command. Isso pode levar alguns segundos..."
 while [ "$TRIES" -lt "$MAX_TRIES" ]; do
-  # Usando -v para logar mais detalhes da requisição, incluindo o tempo
-  RESULT_RESPONSE=$(curl -s -v -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
-    -H "Authorization: Bearer $ACCESS_TOKEN" 2>&1)
+  # Usa -w para obter o tempo de resposta sem poluir a saída principal
+  RESULT_RESPONSE=$(curl -s -w "time_total:%{time_total}\n" -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
+    -H "Authorization: Bearer $ACCESS_TOKEN")
 
-  # A saída com -v vai para stderr, então vamos analisar a resposta separadamente
-  STATUS=$(echo "$RESULT_RESPONSE" | jq -r '.status')
+  # Separa o tempo da resposta JSON
+  RESPONSE_BODY=$(echo "$RESULT_RESPONSE" | sed 's/time_total:.*//')
+  RESPONSE_TIME=$(echo "$RESULT_RESPONSE" | grep "time_total" | cut -d: -f2)
+
+  echo "Tempo de resposta da tentativa $TRIES: $RESPONSE_TIME segundos"
+
+  # Verifica se a resposta é um JSON válido antes de tentar extrair o status.
+  STATUS=$(echo "$RESPONSE_BODY" | jq -r '.status')
 
   if [ "$?" -eq 0 ] && [ "$STATUS" == "COMPLETED" ]; then
     echo "Status COMPLETED. Extraindo resultado..."
@@ -88,6 +94,6 @@ fi
 
 # === Extrai resposta e gera arquivo Markdown ===
 # Extrai a resposta final do JSON e salva no arquivo.
-echo "$RESULT_RESPONSE" | jq -r '.result.answer' > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
+echo "$RESPONSE_BODY" | jq -r '.result.answer' > resposta_lys.md || erro "Falha ao gerar o arquivo Markdown."
 
 echo "Análise concluída. O resultado foi salvo em 'resposta_lys.md'."
