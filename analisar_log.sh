@@ -46,7 +46,7 @@ EXECUTION_ID=$(jq -r 'if type=="object" then .execution_id else . end' lys_respo
 [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ] && erro "execution_id não encontrado na resposta do Quick Command!"
 
 # === 5. POLLING ATÉ O STATUS SER COMPLETED ===
-for i in {1..10}; do
+for i in {1..20}; do
   RESULT_RESPONSE=$(curl -s -X GET "${CALLBACK_URL}/${EXECUTION_ID}" \
     -H "Authorization: Bearer $ACCESS_TOKEN")
   STATUS=$(echo "$RESULT_RESPONSE" | jq -r .status)
@@ -55,7 +55,7 @@ for i in {1..10}; do
     break
   fi
   echo "Aguardando resultado... (tentativa $i)"
-  sleep 3
+  sleep 5
 done
 
 [ ! -f lys_result.json ] && erro "Resultado não ficou pronto após várias tentativas."
