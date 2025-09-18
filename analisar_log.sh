@@ -29,15 +29,22 @@ JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
 
 # === Chama o Quick Command e salva o response ===
 RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/analisar-logs-da-pipeline" \
--H "Authorization: Bearer $ACCESS_TOKEN" \
--H "Content-Type: application/json" \
--d "$JSON")
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$JSON")
 
 echo "Resposta do POST:"
 echo "$RESPONSE"
 
-# === Extrai o execution_id ===
-EXECUTION_ID=$(echo "$RESPONSE" | jq -r .execution_id)
+# === Extrai o execution_id (trata resposta string ou JSON) ===
+if echo "$RESPONSE" | grep -q '^"'; then
+  # Resposta é uma string entre aspas
+  EXECUTION_ID=$(echo "$RESPONSE" | tr -d '"')
+else
+  # Resposta é um JSON
+  EXECUTION_ID=$(echo "$RESPONSE" | jq -r .execution_id)
+fi
+
 if [ -z "$EXECUTION_ID" ] || [ "$EXECUTION_ID" == "null" ]; then
   erro "execution_id não encontrado na resposta do Quick Command!"
 fi
