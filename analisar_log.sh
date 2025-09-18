@@ -21,7 +21,7 @@ command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. 
 # === Gera o access token ===
 # Realiza a chamada para obter o token de acesso.
 TOKEN_URL="https://idm.stackspot.com/${REALM:-stackspot-freemium}/oidc/oauth/token"
-ACCESS_TOKEN=$(curl -s --location --request POST "$TOKEN_URL" \
+ACCESS_TOKEN=$(curl -s --connect-timeout 10 --location --request POST "$TOKEN_URL" \
   --header 'Content-Type: application/x-www-form-urlencoded' \
   --data-urlencode "client_id=${CLIENT_ID}" \
   --data-urlencode 'grant_type=client_credentials' \
@@ -38,7 +38,7 @@ JSON=$(jq -n --arg logs_erro "$(cat error.log)" '{input_data: $logs_erro}')
 
 # === Chama o Quick Command e salva o response ===
 # Envia o log para a API e obtém o execution_id.
-RESPONSE=$(curl -s -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/analisar-logs-da-pipeline" \
+RESPONSE=$(curl -s --connect-timeout 10 -X POST "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/create-execution/analisar-logs-da-pipeline" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d "$JSON")
@@ -65,14 +65,13 @@ TRIES=0
 
 echo "Aguardando o resultado do Quick Command. Isso pode levar alguns segundos..."
 while [ "$TRIES" -lt "$MAX_TRIES" ]; do
-  RESULT_RESPONSE=$(curl -s -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
-    -H "Authorization: Bearer $ACCESS_TOKEN")
+  # Usando -v para logar mais detalhes da requisição, incluindo o tempo
+  RESULT_RESPONSE=$(curl -s -v -X GET "https://genai-code-buddy-api.stackspot.com/v1/quick-commands/callback/$EXECUTION_ID" \
+    -H "Authorization: Bearer $ACCESS_TOKEN" 2>&1)
 
-  # Verifica se a chamada curl foi bem-sucedida.
-  [ "$?" -ne 0 ] && erro "Falha na chamada de callback para o execution_id: $EXECUTION_ID"
-
-  # Verifica se a resposta é um JSON válido antes de tentar extrair o status.
+  # A saída com -v vai para stderr, então vamos analisar a resposta separadamente
   STATUS=$(echo "$RESULT_RESPONSE" | jq -r '.status')
+
   if [ "$?" -eq 0 ] && [ "$STATUS" == "COMPLETED" ]; then
     echo "Status COMPLETED. Extraindo resultado..."
     break
