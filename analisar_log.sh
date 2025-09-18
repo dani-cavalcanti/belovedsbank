@@ -8,7 +8,6 @@ erro() {
 
 # === Verificações de requisitos ===
 command -v jq >/dev/null 2>&1 || erro "O utilitário 'jq' não está instalado. Instale com: sudo apt-get install jq"
-command -v pandoc >/dev/null 2>&1 || erro "O utilitário 'pandoc' não está instalado. Instale com: sudo apt-get install pandoc"
 
 # === Verifica se o arquivo de resposta existe ===
 [ -f "lys_response.json" ] || erro "Arquivo 'lys_response.json' não encontrado no diretório atual."
